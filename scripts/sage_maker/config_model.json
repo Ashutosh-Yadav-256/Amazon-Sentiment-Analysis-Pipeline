@@ -1,0 +1,26 @@
+{
+  "model_type": "distilbert",
+  "base_model": "distilbert-base-uncased",
+  "num_labels": 2,
+  "id2label": {
+    "0": "negative",
+    "1": "positive"
+  },
+  "label2id": {
+    "negative": 0,
+    "positive": 1
+  },
+  "max_seq_length": 128,
+  "training": {
+    "epochs": 2,
+    "train_batch_size": 16,
+    "eval_batch_size": 16,
+    "learning_rate": 5e-5,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1
+  },
+  "compiler_optimization": {
+    "enabled": true,
+    "instance_type": "ml.g4dn.xlarge"
+  }
+}
