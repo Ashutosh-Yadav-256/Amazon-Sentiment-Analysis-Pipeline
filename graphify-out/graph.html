@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graphify Knowledge Graph - Amazon Sentiment Analysis Pipeline</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+    }
+    #canvas-container {
+      flex: 1;
+      height: 100vh;
+      position: relative;
+    }
+    svg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    svg:active {
+      cursor: grabbing;
+    }
+    .top-bar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .brand-box {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid #334155;
+      padding: 12px 18px;
+      border-radius: 8px;
+      pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .brand-subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .controls-box {
+      display: flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid #334155;
+      padding: 8px 12px;
+      border-radius: 8px;
+      pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    input[type="text"], select {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="text"]:focus, select:focus {
+      border-color: #38bdf8;
+    }
+    button {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #e2e8f0;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover {
+      background: #334155;
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+    #sidebar {
+      width: 380px;
+      height: 100vh;
+      background: #0f172a;
+      border-left: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -4px 0 16px rgba(0, 0, 0, 0.4);
+      z-index: 20;
+    }
+    .sidebar-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sidebar-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      letter-spacing: 0.3px;
+    }
+    .sidebar-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .placeholder-text {
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .node-header-card {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+      border-left: 4px solid #38bdf8;
+    }
+    .node-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f8fafc;
+      word-break: break-word;
+    }
+    .node-type-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: #334155;
+      color: #94a3b8;
+    }
+    .community-tag {
+      display: inline-block;
+      margin-top: 6px;
+      margin-left: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .metric-cell {
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .metric-label {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .metric-value {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-top: 3px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .desc-box {
+      background: #1e293b;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .connection-list {
+      list-style: none;
+      margin-bottom: 16px;
+    }
+    .connection-item {
+      background: #1e293b;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .connection-item:hover {
+      background: #334155;
+    }
+    .conn-relation {
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+    .conn-target {
+      color: #f1f5f9;
+      font-weight: 500;
+    }
+    .legend-box {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid #334155;
+      padding: 12px 16px;
+      border-radius: 8px;
+      z-index: 10;
+      font-size: 11px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .legend-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .legend-item:hover {
+      opacity: 0.8;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .link {
+      stroke: #334155;
+      stroke-opacity: 0.6;
+      stroke-width: 1.5;
+      fill: none;
+    }
+    .link.highlighted {
+      stroke: #38bdf8;
+      stroke-opacity: 1;
+      stroke-width: 2.5;
+    }
+    .node {
+      cursor: pointer;
+      stroke-width: 2px;
+      transition: transform 0.1s ease;
+    }
+    .node:hover {
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+    }
+    .node-label {
+      font-size: 10px;
+      font-weight: 600;
+      fill: #cbd5e1;
+      pointer-events: none;
+      text-anchor: middle;
+      user-select: none;
+    }
+    .node-label.highlighted {
+      fill: #38bdf8;
+      font-weight: 700;
+    }
+    marker path {
+      fill: #334155;
+    }
+    marker#arrow-highlight path {
+      fill: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <div class="top-bar">
+      <div class="brand-box">
+        <div class="brand-title">Graphify Knowledge Graph</div>
+        <div class="brand-subtitle">Amazon Sentiment Analysis Pipeline | 31 Nodes | 48 Edges</div>
+      </div>
+      <div class="controls-box">
+        <input type="text" id="search-input" placeholder="Search nodes...">
+        <select id="community-select">
+          <option value="all">All Communities (6)</option>
+          <option value="0">C0: Cloud Infrastructure & Storage</option>
+          <option value="1">C1: Data Engineering (Glue & S3)</option>
+          <option value="2">C2: Model Lifecycle & SageMaker</option>
+          <option value="3">C3: Web App & API Gateway</option>
+          <option value="4">C4: ECS Inference Container</option>
+          <option value="5">C5: Deployment, CI/CD & Testing</option>
+        </select>
+        <button id="reset-zoom-btn">Reset View</button>
+      </div>
+    </div>
+
+    <svg id="graph-svg"></svg>
+
+    <div class="legend-box">
+      <div class="legend-title">Communities</div>
+      <div class="legend-item" data-comm="0"><div class="legend-dot" style="background: #38bdf8;"></div> Cloud Infrastructure (7)</div>
+      <div class="legend-item" data-comm="1"><div class="legend-dot" style="background: #f59e0b;"></div> Data Engineering (7)</div>
+      <div class="legend-item" data-comm="2"><div class="legend-dot" style="background: #ec4899;"></div> Model Lifecycle (8)</div>
+      <div class="legend-item" data-comm="3"><div class="legend-dot" style="background: #10b981;"></div> Web App Gateway (6)</div>
+      <div class="legend-item" data-comm="4"><div class="legend-dot" style="background: #8b5cf6;"></div> ECS Container (4)</div>
+      <div class="legend-item" data-comm="5"><div class="legend-dot" style="background: #06b6d4;"></div> CI/CD & Tests (3)</div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Node Inspector</div>
+    </div>
+    <div class="sidebar-body" id="sidebar-content">
+      <div class="placeholder-text">Click on any node in the graph to inspect its properties, centrality metrics, in/out degrees, and directed dependencies.</div>
+    </div>
+  </div>
+
+  <script>
+    const graphData = {
+      "nodes": [
+        {"id": "s3_data_bucket", "name": "s3://mlops-sentiment-analysis-data", "type": "storage", "community": 0, "community_name": "Cloud Infrastructure & Storage", "degree": 11, "in_degree": 6, "out_degree": 5, "pagerank": 0.084, "description": "Primary MLOps data lake bucket containing raw reviews, Bronze/Silver ETL stages, test splits, and model registry artifacts."},
+        {"id": "s3_app_bucket", "name": "s3://mlops-sentiment-app", "type": "storage", "community": 0, "community_name": "Cloud Infrastructure & Storage", "degree": 12, "in_degree": 6, "out_degree": 6, "pagerank": 0.092, "description": "Serving and user app bucket storing uploads/raw, processed data, served predictions, active model weights, and pipeline status."},
+        {"id": "aws_cognito", "name": "AWS Cognito User Pool", "type": "service", "community": 0, "community_name": "Cloud Infrastructure & Storage", "degree": 2, "in_degree": 1, "out_degree": 1, "pagerank": 0.021, "description": "Managed authentication service providing USER_PASSWORD_AUTH and JWT token issuance."},
+        {"id": "aws_ecs", "name": "AWS ECS Fargate", "type": "service", "community": 0, "community_name": "Cloud Infrastructure & Storage", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.038, "description": "Serverless container compute engine executing sentiment-pipeline batch inference tasks on demand."},
+        {"id": "aws_ec2", "name": "AWS EC2 Instance (i-0d9483271f7cacc06)", "type": "service", "community": 0, "community_name": "Cloud Infrastructure & Storage", "degree": 3, "in_degree": 2, "out_degree": 1, "pagerank": 0.025, "description": "Virtual machine running FastAPI and Streamlit web processes."},
+        {"id": "aws_sagemaker", "name": "AWS SageMaker", "type": "service", "community": 0, "community_name": "Cloud Infrastructure & Storage", "degree": 3, "in_degree": 2, "out_degree": 1, "pagerank": 0.032, "description": "Managed ML service used for GPU fine-tuning (ml.g4dn.xlarge) and real-time endpoint deployment."},
+        {"id": "aws_ecr", "name": "AWS ECR Registry", "type": "service", "community": 0, "community_name": "Cloud Infrastructure & Storage", "degree": 2, "in_degree": 1, "out_degree": 1, "pagerank": 0.019, "description": "Container image repository hosting sentiment-pipeline Docker images."},
+        {"id": "upload_to_s3", "name": "scripts/s3/upload_to_s3.py", "type": "tool", "community": 1, "community_name": "Data Engineering (AWS Glue & S3)", "degree": 2, "in_degree": 1, "out_degree": 1, "pagerank": 0.018, "description": "Multi-threaded multipart uploader with automated abort handling."},
+        {"id": "app_bucket_s3", "name": "scripts/s3/app_bucket_s3.py", "type": "tool", "community": 1, "community_name": "Data Engineering (AWS Glue & S3)", "degree": 3, "in_degree": 0, "out_degree": 3, "pagerank": 0.024, "description": "Initializes app bucket structure and discovers/copies latest trained model artifact."},
+        {"id": "glue_data_filtering", "name": "scripts/glue/glue_data_filtering.py", "type": "etl_job", "community": 1, "community_name": "Data Engineering (AWS Glue & S3)", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.031, "description": "PySpark script splitting raw reviews into 80% train, 10% test, 10% serve subsets."},
+        {"id": "glue_data_preprocessing", "name": "scripts/glue/glue_data_preprocessing.py", "type": "etl_job", "community": 1, "community_name": "Data Engineering (AWS Glue & S3)", "degree": 2, "in_degree": 1, "out_degree": 1, "pagerank": 0.028, "description": "PySpark script performing whitespace normalization, lowercasing, and review deduplication."},
+        {"id": "glue_schema_validation", "name": "scripts/glue/glue_schema_validation.py", "type": "etl_job", "community": 1, "community_name": "Data Engineering (AWS Glue & S3)", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.033, "description": "PySpark script validating schema, profiling review lengths, and emitting metadata JSON."},
+        {"id": "glue_anomaly_detection", "name": "scripts/glue/glue_anomaly_detection.py", "type": "etl_job", "community": 1, "community_name": "Data Engineering (AWS Glue & S3)", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.032, "description": "PySpark script flagging short or outlier review lengths and clamping star ratings."},
+        {"id": "glue_sampling", "name": "scripts/glue/glue_sampling.py", "type": "etl_job", "community": 1, "community_name": "Data Engineering (AWS Glue & S3)", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.036, "description": "PySpark script performing stratified sampling to balance binary classes to <= 50,000 records."},
+        {"id": "distilbert_model", "name": "DistilBERT Sequence Classifier", "type": "model", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 5, "in_degree": 2, "out_degree": 3, "pagerank": 0.057, "description": "Fine-tuned 66M parameter transformer predicting binary sentiment (0: negative, 1: positive)."},
+        {"id": "sm_trigger", "name": "scripts/sage_maker/trigger.py", "type": "tool", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 3, "in_degree": 0, "out_degree": 3, "pagerank": 0.026, "description": "Orchestrates SageMaker HuggingFace estimator execution with training compiler enabled."},
+        {"id": "sm_train", "name": "scripts/sage_maker/train.py", "type": "ml_job", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 5, "in_degree": 1, "out_degree": 4, "pagerank": 0.052, "description": "Model fine-tuning training loop with evaluation checkpoints and MLflow tracking."},
+        {"id": "sm_test", "name": "scripts/sage_maker/test.py", "type": "ml_job", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 3, "in_degree": 0, "out_degree": 3, "pagerank": 0.029, "description": "Evaluates latest model against 20k balanced samples, calculating confidence scores."},
+        {"id": "sm_deploy", "name": "scripts/sage_maker/deploy.py", "type": "tool", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 2, "in_degree": 0, "out_degree": 2, "pagerank": 0.019, "description": "Deploys model weights to a SageMaker real-time prediction endpoint."},
+        {"id": "sm_evaluate", "name": "scripts/sage_maker/evaluate.py", "type": "tool", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 2, "in_degree": 0, "out_degree": 2, "pagerank": 0.017, "description": "Computes classification report, precision, recall, and F1 metrics."},
+        {"id": "sm_inference", "name": "scripts/sage_maker/inference.py", "type": "module", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 1, "in_degree": 0, "out_degree": 1, "pagerank": 0.012, "description": "SageMaker endpoint inference handler (model_fn, input_fn, predict_fn, output_fn)."},
+        {"id": "mlflow_registry", "name": "MLflow Tracking Server", "type": "service", "community": 2, "community_name": "Model Lifecycle & SageMaker", "degree": 2, "in_degree": 2, "out_degree": 0, "pagerank": 0.018, "description": "Experiment tracking backend storing training metrics and artifacts."},
+        {"id": "api_main", "name": "sentiment-app/backend/main.py", "type": "service", "community": 3, "community_name": "Web Application & API Gateway", "degree": 6, "in_degree": 3, "out_degree": 3, "pagerank": 0.068, "description": "Central FastAPI gateway exposing /login, /trigger_pipeline, and /generate_dashboard."},
+        {"id": "api_auth", "name": "sentiment-app/backend/auth.py", "type": "module", "community": 3, "community_name": "Web Application & API Gateway", "degree": 3, "in_degree": 2, "out_degree": 1, "pagerank": 0.035, "description": "Cognito auth handler and Bearer JWT token verification dependency."},
+        {"id": "api_utils", "name": "sentiment-app/backend/utils.py", "type": "module", "community": 3, "community_name": "Web Application & API Gateway", "degree": 5, "in_degree": 2, "out_degree": 3, "pagerank": 0.062, "description": "ECS Task runner and summary metric generator parsing served CSV outputs."},
+        {"id": "ui_login", "name": "sentiment-app/frontend/streamlit_app.py", "type": "ui_view", "community": 3, "community_name": "Web Application & API Gateway", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.034, "description": "User login interface forwarding credentials to FastAPI and managing session tokens."},
+        {"id": "ui_upload", "name": "sentiment-app/frontend/pages/upload_and_trigger.py", "type": "ui_view", "community": 3, "community_name": "Web Application & API Gateway", "degree": 5, "in_degree": 1, "out_degree": 4, "pagerank": 0.059, "description": "File upload view, pipeline trigger client, and S3 status polling monitor."},
+        {"id": "ui_dashboard", "name": "sentiment-app/frontend/pages/dashboard.py", "type": "ui_view", "community": 3, "community_name": "Web Application & API Gateway", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.037, "description": "Visual analytics dashboard rendering sentiment breakdown and length histograms."},
+        {"id": "pipe_docker", "name": "sentiment-pipeline/Dockerfile", "type": "container", "community": 4, "community_name": "ECS Inference Container", "degree": 3, "in_degree": 2, "out_degree": 1, "pagerank": 0.033, "description": "Bitnami Spark 3.4.1 container packaging inference scripts and HuggingFace PyTorch."},
+        {"id": "pipe_run_all", "name": "sentiment-pipeline/run_all.py", "type": "script", "community": 4, "community_name": "ECS Inference Container", "degree": 4, "in_degree": 1, "out_degree": 3, "pagerank": 0.045, "description": "Container entrypoint executing clean and infer subprocesses sequentially."},
+        {"id": "pipe_run_clean", "name": "sentiment-pipeline/run_clean.py", "type": "script", "community": 4, "community_name": "ECS Inference Container", "degree": 3, "in_degree": 1, "out_degree": 2, "pagerank": 0.036, "description": "PySpark script running inside container to clean reviews and flag short entries."},
+        {"id": "pipe_run_infer", "name": "sentiment-pipeline/run_infer.py", "type": "script", "community": 4, "community_name": "ECS Inference Container", "degree": 4, "in_degree": 1, "out_degree": 3, "pagerank": 0.048, "description": "Loads DistilBERT weights and generates sentiment classifications into served.csv."},
+        {"id": "cicd_workflow", "name": ".github/workflows/ci_cd.yml", "type": "workflow", "community": 5, "community_name": "Deployment, CI/CD & Testing", "degree": 4, "in_degree": 0, "out_degree": 4, "pagerank": 0.027, "description": "GitHub Actions workflow running linting, PyTest, and automated ECR container publishing."},
+        {"id": "deploy_ec2_start", "name": "sentiment-app/deployment/ec2_start_and_deploy.py", "type": "script", "community": 5, "community_name": "Deployment, CI/CD & Testing", "degree": 4, "in_degree": 0, "out_degree": 4, "pagerank": 0.031, "description": "Remote SSH deployment automation provisioning venv and starting backend/frontend."},
+        {"id": "tests_suite", "name": "tests/ (test_api, test_glue, test_infer)", "type": "test", "community": 5, "community_name": "Deployment, CI/CD & Testing", "degree": 4, "in_degree": 1, "out_degree": 3, "pagerank": 0.038, "description": "Automated unit and integration test suite with 13 passing test cases."}
+      ],
+      "links": [
+        {"source": "upload_to_s3", "target": "s3_data_bucket", "relation": "writes_raw_reviews"},
+        {"source": "glue_data_filtering", "target": "s3_data_bucket", "relation": "reads_raw_and_splits_subsets"},
+        {"source": "glue_data_preprocessing", "target": "s3_data_bucket", "relation": "reads_train_and_normalizes"},
+        {"source": "glue_schema_validation", "target": "s3_data_bucket", "relation": "validates_and_profiles_length"},
+        {"source": "glue_anomaly_detection", "target": "s3_data_bucket", "relation": "flags_length_anomalies"},
+        {"source": "glue_sampling", "target": "s3_data_bucket", "relation": "emits_balanced_silver_sampled_csv"},
+        {"source": "sm_trigger", "target": "aws_sagemaker", "relation": "launches_training_estimator"},
+        {"source": "sm_trigger", "target": "sm_train", "relation": "specifies_entrypoint"},
+        {"source": "sm_trigger", "target": "s3_data_bucket", "relation": "specifies_training_channel"},
+        {"source": "sm_train", "target": "s3_data_bucket", "relation": "downloads_sampled_csv"},
+        {"source": "sm_train", "target": "distilbert_model", "relation": "fine_tunes_weights"},
+        {"source": "sm_train", "target": "mlflow_registry", "relation": "logs_training_metrics"},
+        {"source": "sm_train", "target": "s3_data_bucket", "relation": "writes_model_tar_gz"},
+        {"source": "app_bucket_s3", "target": "s3_data_bucket", "relation": "discovers_latest_model"},
+        {"source": "app_bucket_s3", "target": "s3_app_bucket", "relation": "copies_active_model_tar_gz"},
+        {"source": "sm_test", "target": "s3_data_bucket", "relation": "evaluates_model_weights"},
+        {"source": "sm_test", "target": "mlflow_registry", "relation": "logs_eval_metrics"},
+        {"source": "sm_deploy", "target": "aws_sagemaker", "relation": "creates_realtime_endpoint"},
+        {"source": "sm_deploy", "target": "s3_data_bucket", "relation": "loads_model_artifact"},
+        {"source": "sm_evaluate", "target": "distilbert_model", "relation": "evaluates_classification_metrics"},
+        {"source": "ui_login", "target": "api_main", "relation": "invokes_post_login"},
+        {"source": "ui_login", "target": "ui_upload", "relation": "redirects_on_success"},
+        {"source": "api_main", "target": "api_auth", "relation": "delegates_user_authentication"},
+        {"source": "api_auth", "target": "aws_cognito", "relation": "calls_initiate_auth"},
+        {"source": "api_main", "target": "api_auth", "relation": "depends_on_verify_token"},
+        {"source": "ui_upload", "target": "s3_app_bucket", "relation": "uploads_raw_client_csv"},
+        {"source": "ui_upload", "target": "api_main", "relation": "invokes_post_trigger_pipeline"},
+        {"source": "ui_upload", "target": "s3_app_bucket", "relation": "polls_pipeline_status_json"},
+        {"source": "ui_upload", "target": "api_main", "relation": "invokes_post_generate_dashboard"},
+        {"source": "ui_upload", "target": "ui_dashboard", "relation": "navigates_to_results"},
+        {"source": "api_main", "target": "api_utils", "relation": "invokes_trigger_ecs_pipeline"},
+        {"source": "api_main", "target": "api_utils", "relation": "invokes_generate_dashboard"},
+        {"source": "api_utils", "target": "aws_ecs", "relation": "invokes_run_task_fargate"},
+        {"source": "api_utils", "target": "s3_app_bucket", "relation": "parses_served_csv_and_writes_summary"},
+        {"source": "aws_ecs", "target": "pipe_docker", "relation": "executes_container_task"},
+        {"source": "pipe_docker", "target": "pipe_run_all", "relation": "runs_as_entrypoint"},
+        {"source": "pipe_run_all", "target": "pipe_run_clean", "relation": "executes_subprocess"},
+        {"source": "pipe_run_clean", "target": "s3_app_bucket", "relation": "reads_raw_and_writes_processed_csv"},
+        {"source": "pipe_run_all", "target": "pipe_run_infer", "relation": "executes_subprocess"},
+        {"source": "pipe_run_infer", "target": "s3_app_bucket", "relation": "downloads_processed_csv_and_model"},
+        {"source": "pipe_run_infer", "target": "distilbert_model", "relation": "runs_transformer_inference"},
+        {"source": "pipe_run_infer", "target": "s3_app_bucket", "relation": "uploads_served_csv_and_sets_status"},
+        {"source": "ui_dashboard", "target": "s3_app_bucket", "relation": "reads_served_csv_and_summary_json"},
+        {"source": "cicd_workflow", "target": "tests_suite", "relation": "runs_automated_tests"},
+        {"source": "cicd_workflow", "target": "aws_ecr", "relation": "builds_and_publishes_image"},
+        {"source": "deploy_ec2_start", "target": "aws_ec2", "relation": "starts_instance_via_boto3"},
+        {"source": "deploy_ec2_start", "target": "api_main", "relation": "launches_uvicorn_backend"},
+        {"source": "deploy_ec2_start", "target": "ui_login", "relation": "launches_streamlit_frontend"},
+        {"source": "tests_suite", "target": "api_main", "relation": "validates_api_and_security"},
+        {"source": "tests_suite", "target": "glue_sampling", "relation": "validates_transformation_logic"},
+        {"source": "tests_suite", "target": "pipe_run_infer", "relation": "validates_metric_calculation"}
+      ]
+    };
+
+    const communityColors = {
+      0: "#38bdf8",
+      1: "#f59e0b",
+      2: "#ec4899",
+      3: "#10b981",
+      4: "#8b5cf6",
+      5: "#06b6d4"
+    };
+
+    const svg = d3.select("#graph-svg");
+    const container = document.getElementById("canvas-container");
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    const g = svg.append("g");
+
+    const zoom = d3.zoom()
+      .scaleExtent([0.15, 4])
+      .on("zoom", (event) => {
+        g.attr("transform", event.transform);
+      });
+
+    svg.call(zoom);
+
+    svg.append("defs").selectAll("marker")
+      .data(["normal", "highlight"])
+      .join("marker")
+      .attr("id", d => `arrow-${d}`)
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 22)
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5");
+
+    const simulation = d3.forceSimulation(graphData.nodes)
+      .force("link", d3.forceLink(graphData.links).id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-350))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(d => Math.sqrt(d.degree) * 6 + 12));
+
+    const link = g.append("g")
+      .attr("class", "links")
+      .selectAll("path")
+      .data(graphData.links)
+      .join("path")
+      .attr("class", "link")
+      .attr("marker-end", "url(#arrow-normal)");
+
+    const node = g.append("g")
+      .attr("class", "nodes")
+      .selectAll("g")
+      .data(graphData.nodes)
+      .join("g")
+      .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+
+    node.append("circle")
+      .attr("class", "node")
+      .attr("r", d => Math.max(7, Math.sqrt(d.degree) * 5 + 4))
+      .attr("fill", d => communityColors[d.community] || "#64748b")
+      .attr("stroke", "#0f172a");
+
+    node.append("text")
+      .attr("class", "node-label")
+      .attr("dy", d => Math.max(7, Math.sqrt(d.degree) * 5 + 4) + 12)
+      .text(d => {
+        const parts = d.name.split("/");
+        return parts[parts.length - 1];
+      });
+
+    node.on("click", (event, d) => {
+      selectNode(d);
+      event.stopPropagation();
+    });
+
+    svg.on("click", () => {
+      resetHighlights();
+    });
+
+    simulation.on("tick", () => {
+      link.attr("d", d => {
+        const dx = d.target.x - d.source.x;
+        const dy = d.target.y - d.source.y;
+        return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+      });
+
+      node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+
+    function dragstarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    function selectNode(d) {
+      const activeColor = communityColors[d.community] || "#38bdf8";
+
+      node.selectAll("circle")
+        .attr("opacity", n => (n.id === d.id || isConnected(n, d) ? 1 : 0.15))
+        .attr("stroke", n => (n.id === d.id ? "#ffffff" : "#0f172a"))
+        .attr("stroke-width", n => (n.id === d.id ? 3 : 2));
+
+      node.selectAll("text")
+        .classed("highlighted", n => n.id === d.id)
+        .attr("opacity", n => (n.id === d.id || isConnected(n, d) ? 1 : 0.1));
+
+      link
+        .classed("highlighted", l => l.source.id === d.id || l.target.id === d.id)
+        .attr("stroke-opacity", l => (l.source.id === d.id || l.target.id === d.id ? 1 : 0.05))
+        .attr("marker-end", l => (l.source.id === d.id || l.target.id === d.id ? "url(#arrow-highlight)" : "url(#arrow-normal)"));
+
+      renderSidebar(d);
+    }
+
+    function isConnected(a, b) {
+      return graphData.links.some(l => 
+        (l.source.id === a.id && l.target.id === b.id) || 
+        (l.source.id === b.id && l.target.id === a.id)
+      );
+    }
+
+    function resetHighlights() {
+      node.selectAll("circle")
+        .attr("opacity", 1)
+        .attr("stroke", "#0f172a")
+        .attr("stroke-width", 2);
+
+      node.selectAll("text")
+        .classed("highlighted", false)
+        .attr("opacity", 1);
+
+      link
+        .classed("highlighted", false)
+        .attr("stroke-opacity", 0.6)
+        .attr("marker-end", "url(#arrow-normal)");
+    }
+
+    function renderSidebar(d) {
+      const incoming = graphData.links.filter(l => l.target.id === d.id);
+      const outgoing = graphData.links.filter(l => l.source.id === d.id);
+      const commColor = communityColors[d.community] || "#38bdf8";
+
+      const html = `
+        <div class="node-header-card" style="border-left-color: ${commColor}">
+          <div class="node-name">${d.name}</div>
+          <span class="node-type-badge">${d.type}</span>
+          <span class="community-tag" style="color: ${commColor}; background: ${commColor}22;">${d.community_name}</span>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-cell">
+            <div class="metric-label">PageRank</div>
+            <div class="metric-value">${d.pagerank.toFixed(3)}</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-label">Total Degree</div>
+            <div class="metric-value">${d.degree}</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-label">In-Degree</div>
+            <div class="metric-value">${d.in_degree}</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-label">Out-Degree</div>
+            <div class="metric-value">${d.out_degree}</div>
+          </div>
+        </div>
+
+        <div class="section-title">Functional Description</div>
+        <div class="desc-box">${d.description}</div>
+
+        <div class="section-title">Incoming Dependencies (${incoming.length})</div>
+        <ul class="connection-list">
+          ${incoming.length === 0 ? '<li class="placeholder-text">None (Source root node)</li>' : incoming.map(l => `
+            <li class="connection-item" onclick="focusNode('${l.source.id}')">
+              <div class="conn-relation">${l.relation}</div>
+              <div class="conn-target">${l.source.name}</div>
+            </li>
+          `).join('')}
+        </ul>
+
+        <div class="section-title">Outgoing Operations (${outgoing.length})</div>
+        <ul class="connection-list">
+          ${outgoing.length === 0 ? '<li class="placeholder-text">None (Sink terminal node)</li>' : outgoing.map(l => `
+            <li class="connection-item" onclick="focusNode('${l.target.id}')">
+              <div class="conn-relation">${l.relation}</div>
+              <div class="conn-target">${l.target.name}</div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+
+      document.getElementById("sidebar-content").innerHTML = html;
+    }
+
+    window.focusNode = function(nodeId) {
+      const target = graphData.nodes.find(n => n.id === nodeId);
+      if (target) {
+        selectNode(target);
+        svg.transition().duration(600).call(
+          zoom.transform,
+          d3.zoomIdentity.translate(width / 2 - target.x, height / 2 - target.y).scale(1.2)
+        );
+      }
+    };
+
+    document.getElementById("search-input").addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      if (!query) {
+        resetHighlights();
+        return;
+      }
+      const matched = graphData.nodes.filter(n => 
+        n.name.toLowerCase().includes(query) || 
+        n.id.toLowerCase().includes(query) || 
+        n.description.toLowerCase().includes(query)
+      );
+
+      node.selectAll("circle").attr("opacity", n => (matched.some(m => m.id === n.id) ? 1 : 0.1));
+      node.selectAll("text").attr("opacity", n => (matched.some(m => m.id === n.id) ? 1 : 0.05));
+      link.attr("stroke-opacity", 0.05);
+
+      if (matched.length === 1) {
+        selectNode(matched[0]);
+      }
+    });
+
+    document.getElementById("community-select").addEventListener("change", (e) => {
+      const val = e.target.value;
+      if (val === "all") {
+        resetHighlights();
+        return;
+      }
+      const commId = parseInt(val, 10);
+      node.selectAll("circle").attr("opacity", n => (n.community === commId ? 1 : 0.1));
+      node.selectAll("text").attr("opacity", n => (n.community === commId ? 1 : 0.05));
+      link.attr("stroke-opacity", l => (l.source.community === commId && l.target.community === commId ? 0.8 : 0.05));
+    });
+
+    document.querySelectorAll(".legend-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const commId = parseInt(item.getAttribute("data-comm"), 10);
+        document.getElementById("community-select").value = commId;
+        node.selectAll("circle").attr("opacity", n => (n.community === commId ? 1 : 0.1));
+        node.selectAll("text").attr("opacity", n => (n.community === commId ? 1 : 0.05));
+        link.attr("stroke-opacity", l => (l.source.community === commId && l.target.community === commId ? 0.8 : 0.05));
+      });
+    });
+
+    document.getElementById("reset-zoom-btn").addEventListener("click", () => {
+      resetHighlights();
+      document.getElementById("search-input").value = "";
+      document.getElementById("community-select").value = "all";
+      svg.transition().duration(600).call(
+        zoom.transform,
+        d3.zoomIdentity.translate(0, 0).scale(1)
+      );
+    });
+
+    window.addEventListener("resize", () => {
+      const newWidth = container.clientWidth;
+      const newHeight = container.clientHeight;
+      simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2)).restart();
+    });
+  </script>
+</body>
+</html>
+
